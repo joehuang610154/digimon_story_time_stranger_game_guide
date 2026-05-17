@@ -2,11 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 import '../data/repository.dart';
 import 'pages/digimon_list_page.dart';
-import 'pages/evolution_page.dart';
-import 'pages/glossary_page.dart';
-import 'pages/personality_page.dart';
 import 'pages/settings_page.dart';
-import 'pages/skill_page.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -44,26 +40,6 @@ class _AppShellState extends State<AppShell> {
             icon: const Icon(FluentIcons.bullseye_target),
             title: const Text('圖鑑'),
             body: DigimonListPage(repository: repo),
-          ),
-          PaneItem(
-            icon: const Icon(FluentIcons.org),
-            title: const Text('進化路線'),
-            body: EvolutionPage(repository: repo),
-          ),
-          PaneItem(
-            icon: const Icon(FluentIcons.lightning_bolt),
-            title: const Text('技能'),
-            body: SkillPage(repository: repo),
-          ),
-          PaneItem(
-            icon: const Icon(FluentIcons.contact),
-            title: const Text('個性與才能值'),
-            body: PersonalityPage(repository: repo),
-          ),
-          PaneItem(
-            icon: const Icon(FluentIcons.dictionary),
-            title: const Text('術語表'),
-            body: GlossaryPage(repository: repo),
           ),
         ],
         footerItems: [

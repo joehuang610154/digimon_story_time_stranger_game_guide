@@ -37,7 +37,18 @@ class _DigimonDetailPageState extends State<DigimonDetailPage> {
     final evosIn = await widget.repository.evolutionsTo(widget.digimonId);
     final skills = await widget.repository.skillsForDigimon(widget.digimonId);
     final lookups = await widget.repository.loadLookups();
-    return _DetailData(d, evosOut, evosIn, skills, lookups);
+    // 一次拿全部數碼寶貝與技能後做 map，避免 N+1 query。
+    final allDigis = await widget.repository.allDigimons();
+    final allSkillRows = await widget.repository.allSkills();
+    return _DetailData(
+      digimon: d,
+      evolutionsOut: evosOut,
+      evolutionsIn: evosIn,
+      skills: skills,
+      lookups: lookups,
+      digimonsById: {for (final r in allDigis) r.id: r},
+      skillsById: {for (final r in allSkillRows) r.id: r},
+    );
   }
 
   @override
@@ -85,7 +96,17 @@ class _DigimonDetailPageState extends State<DigimonDetailPage> {
           final data = snap.data!;
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: _DetailBody(data: data),
+            child: _DetailBody(
+              data: data,
+              onOpenDigimon: (id) {
+                Navigator.of(context).push(FluentPageRoute(
+                  builder: (_) => DigimonDetailPage(
+                    repository: widget.repository,
+                    digimonId: id,
+                  ),
+                ));
+              },
+            ),
           );
         },
       ),
@@ -94,23 +115,28 @@ class _DigimonDetailPageState extends State<DigimonDetailPage> {
 }
 
 class _DetailData {
-  _DetailData(
-    this.digimon,
-    this.evolutionsOut,
-    this.evolutionsIn,
-    this.skills,
-    this.lookups,
-  );
+  _DetailData({
+    required this.digimon,
+    required this.evolutionsOut,
+    required this.evolutionsIn,
+    required this.skills,
+    required this.lookups,
+    required this.digimonsById,
+    required this.skillsById,
+  });
   final DigimonRow digimon;
   final List<EvolutionRow> evolutionsOut;
   final List<EvolutionRow> evolutionsIn;
   final List<DigimonSkillRow> skills;
   final LookupCache lookups;
+  final Map<String, DigimonRow> digimonsById;
+  final Map<String, SkillRow> skillsById;
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.data});
+  const _DetailBody({required this.data, required this.onOpenDigimon});
   final _DetailData data;
+  final ValueChanged<String> onOpenDigimon;
 
   @override
   Widget build(BuildContext context) {
@@ -139,13 +165,26 @@ class _DetailBody extends StatelessWidget {
               ],
             );
 
+      final sortedSkills = _sortSkills(data.skills);
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          BilingualText(
-            zh: d.nameZh,
-            ja: d.nameJa,
-            style: theme.typography.titleLarge,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: BilingualText(
+                  zh: d.nameZh,
+                  ja: d.nameJa,
+                  style: theme.typography.titleLarge,
+                ),
+              ),
+              if (d.dlcPack != null) ...[
+                const SizedBox(width: 12),
+                _DlcBadge(label: d.dlcPack!),
+              ],
+            ],
           ),
           const SizedBox(height: 12),
           headRow,
@@ -157,7 +196,13 @@ class _DetailBody extends StatelessWidget {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: data.evolutionsOut
-                        .map((e) => _EvolutionTile(row: e, fromHere: true))
+                        .map((e) => _EvolutionTile(
+                              row: e,
+                              fromHere: true,
+                              digimonsById: data.digimonsById,
+                              lookups: data.lookups,
+                              onTap: onOpenDigimon,
+                            ))
                         .toList(),
                   ),
           ),
@@ -169,25 +214,30 @@ class _DetailBody extends StatelessWidget {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: data.evolutionsIn
-                        .map((e) => _EvolutionTile(row: e, fromHere: false))
+                        .map((e) => _EvolutionTile(
+                              row: e,
+                              fromHere: false,
+                              digimonsById: data.digimonsById,
+                              lookups: data.lookups,
+                              onTap: onOpenDigimon,
+                            ))
                         .toList(),
                   ),
           ),
           const SizedBox(height: 16),
           _Section(
             title: '習得技能',
-            child: data.skills.isEmpty
+            child: sortedSkills.isEmpty
                 ? const Text('—')
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: data.skills.map((s) {
-                      final lv = s.learnLevel != null ? 'Lv ${s.learnLevel}' : s.acquisition;
-                      return ListTile(
-                        leading: const Icon(FluentIcons.lightning_bolt),
-                        title: Text(s.skillId),
-                        subtitle: Text(lv),
-                      );
-                    }).toList(),
+                    children: sortedSkills
+                        .map((s) => _SkillTile(
+                              row: s,
+                              skillsById: data.skillsById,
+                              lookups: data.lookups,
+                            ))
+                        .toList(),
                   ),
           ),
           if (d.descriptionJa != null || d.descriptionZh != null) ...[
@@ -204,6 +254,20 @@ class _DetailBody extends StatelessWidget {
         ],
       );
     });
+  }
+
+  /// 排序習得技能：先 level 類（按等級遞增），其餘按 acquisition 字典序。
+  List<DigimonSkillRow> _sortSkills(List<DigimonSkillRow> rows) {
+    final sorted = [...rows];
+    sorted.sort((a, b) {
+      final aLvl = a.acquisition == 'level' && a.learnLevel != null;
+      final bLvl = b.acquisition == 'level' && b.learnLevel != null;
+      if (aLvl && bLvl) return a.learnLevel!.compareTo(b.learnLevel!);
+      if (aLvl) return -1;
+      if (bLvl) return 1;
+      return a.acquisition.compareTo(b.acquisition);
+    });
+    return sorted;
   }
 }
 
@@ -241,6 +305,7 @@ class _InfoTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
     final stage = lookups.stages[digimon.stageId];
     final attr = lookups.attributes[digimon.attributeId];
     final type = lookups.types[digimon.typeId];
@@ -251,25 +316,16 @@ class _InfoTable extends StatelessWidget {
       MapEntry('圖鑑編號', Text(digimon.dexNumber?.toString() ?? '—')),
       MapEntry('世代', BilingualText(zh: stage?.nameZh, ja: stage?.nameJa)),
       MapEntry('種族', BilingualText(zh: attr?.nameZh, ja: attr?.nameJa)),
-      MapEntry('タイプ', BilingualText(zh: type?.nameZh, ja: type?.nameJa)),
-      MapEntry('属性', BilingualText(zh: element?.nameZh, ja: element?.nameJa)),
-      MapEntry('基本性格',
+      MapEntry('類型', BilingualText(zh: type?.nameZh, ja: type?.nameJa)),
+      MapEntry('屬性', BilingualText(zh: element?.nameZh, ja: element?.nameJa)),
+      MapEntry('性格',
           BilingualText(zh: personality?.nameZh, ja: personality?.nameJa)),
-      MapEntry('デジライド',
+      MapEntry(
+          '騎乘',
           Text(digimon.canDigiride == null
               ? '—'
               : (digimon.canDigiride! ? '○' : '✕'))),
-      MapEntry(
-          'Lv99 ステータス',
-          Text([
-            if (digimon.maxHp != null) 'HP ${digimon.maxHp}',
-            if (digimon.maxSp != null) 'SP ${digimon.maxSp}',
-            if (digimon.maxAtk != null) 'ATK ${digimon.maxAtk}',
-            if (digimon.maxDef != null) 'DEF ${digimon.maxDef}',
-            if (digimon.maxInt != null) 'INT ${digimon.maxInt}',
-            if (digimon.maxMen != null) 'MEN ${digimon.maxMen}',
-            if (digimon.maxSpd != null) 'SPD ${digimon.maxSpd}',
-          ].join('  /  '))),
+      MapEntry('Lv99 能力', _StatsBlock(digimon: digimon)),
     ];
 
     return _Section(
@@ -281,7 +337,15 @@ class _InfoTable extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(width: 140, child: Text(e.key)),
+                SizedBox(
+                  width: 96,
+                  child: Text(
+                    e.key,
+                    style: theme.typography.body?.copyWith(
+                      color: theme.resources.textFillColorSecondary,
+                    ),
+                  ),
+                ),
                 Expanded(child: e.value),
               ],
             ),
@@ -292,19 +356,302 @@ class _InfoTable extends StatelessWidget {
   }
 }
 
-class _EvolutionTile extends StatelessWidget {
-  const _EvolutionTile({required this.row, required this.fromHere});
-  final EvolutionRow row;
-  final bool fromHere;
+class _StatsBlock extends StatelessWidget {
+  const _StatsBlock({required this.digimon});
+  final DigimonRow digimon;
+
+  static const _labels = <String, String>{
+    'HP': 'maxHp',
+    'SP': 'maxSp',
+    'ATK': 'maxAtk',
+    'DEF': 'maxDef',
+    'INT': 'maxInt',
+    'MEN': 'maxMen',
+    'SPD': 'maxSpd',
+  };
+
+  int? _value(String key) {
+    switch (key) {
+      case 'maxHp':
+        return digimon.maxHp;
+      case 'maxSp':
+        return digimon.maxSp;
+      case 'maxAtk':
+        return digimon.maxAtk;
+      case 'maxDef':
+        return digimon.maxDef;
+      case 'maxInt':
+        return digimon.maxInt;
+      case 'maxMen':
+        return digimon.maxMen;
+      case 'maxSpd':
+        return digimon.maxSpd;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final hasAny = _labels.values.any((k) => _value(k) != null);
+    if (!hasAny) return const Text('—');
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _labels.entries.map((e) {
+        final v = _value(e.value);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: theme.resources.subtleFillColorSecondary,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: theme.resources.cardStrokeColorDefault),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                e.key,
+                style: theme.typography.caption?.copyWith(
+                  color: theme.resources.textFillColorSecondary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                v?.toString() ?? '—',
+                style: theme.typography.bodyStrong,
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _DlcBadge extends StatelessWidget {
+  const _DlcBadge({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final accent = theme.accentColor.defaultBrushFor(theme.brightness);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: accent.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        'DLC · $label',
+        style: theme.typography.caption?.copyWith(color: accent),
+      ),
+    );
+  }
+}
+
+class _EvolutionTile extends StatelessWidget {
+  const _EvolutionTile({
+    required this.row,
+    required this.fromHere,
+    required this.digimonsById,
+    required this.lookups,
+    required this.onTap,
+  });
+
+  final EvolutionRow row;
+  final bool fromHere;
+  final Map<String, DigimonRow> digimonsById;
+  final LookupCache lookups;
+  final ValueChanged<String> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
     final targetId = fromHere ? row.toId : row.fromId;
-    final condition = row.conditionTextZh ?? row.conditionTextJa;
-    return ListTile(
-      leading: Icon(fromHere ? FluentIcons.forward : FluentIcons.back),
-      title: Text(targetId),
-      subtitle: Text(condition ?? ''),
+    final target = digimonsById[targetId];
+    final conditionRaw = row.conditionTextZh ?? row.conditionTextJa;
+    final condition = conditionRaw == null
+        ? null
+        : _summarizeConditionText(conditionRaw);
+    final stage =
+        target == null ? null : lookups.stages[target.stageId];
+    final attr =
+        target == null ? null : lookups.attributes[target.attributeId];
+    final subtitleParts = <String>[
+      if (stage != null) (stage.nameZh ?? stage.nameJa),
+      if (attr != null) (attr.nameZh ?? attr.nameJa),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: HoverButton(
+        onPressed: () => onTap(targetId),
+        cursor: SystemMouseCursors.click,
+        builder: (context, states) {
+          final hover = states.isHovered;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: hover
+                  ? theme.resources.subtleFillColorSecondary
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: theme.resources.cardStrokeColorDefault),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  fromHere ? FluentIcons.forward : FluentIcons.back,
+                  size: 14,
+                  color: theme.resources.textFillColorSecondary,
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: _DetailImage(path: target?.imagePath),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BilingualText(
+                        zh: target?.nameZh,
+                        ja: target?.nameJa ?? targetId,
+                        style: theme.typography.bodyStrong,
+                      ),
+                      if (subtitleParts.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            subtitleParts.join(' · '),
+                            style: theme.typography.caption?.copyWith(
+                              color: theme.resources.textFillColorSecondary,
+                            ),
+                          ),
+                        ),
+                      if (condition != null && condition.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            condition,
+                            style: theme.typography.caption,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SkillTile extends StatelessWidget {
+  const _SkillTile({
+    required this.row,
+    required this.skillsById,
+    required this.lookups,
+  });
+
+  final DigimonSkillRow row;
+  final Map<String, SkillRow> skillsById;
+  final LookupCache lookups;
+
+  String _acquisitionLabel() {
+    if (row.acquisition == 'level' && row.learnLevel != null) {
+      return 'Lv ${row.learnLevel}';
+    }
+    switch (row.acquisition) {
+      case 'inherit':
+        return '遺傳';
+      case 'event':
+        return '事件';
+      case 'item':
+        return '道具';
+      case 'level':
+        return '升等';
+      default:
+        return row.acquisition;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final skill = skillsById[row.skillId];
+    final element =
+        skill?.elementId == null ? null : lookups.elements[skill!.elementId];
+    final category = skill?.categoryId == null
+        ? null
+        : lookups.skillCategories[skill!.categoryId];
+    final captionParts = <String>[
+      if (element != null) (element.nameZh ?? element.nameJa),
+      if (category != null) (category.nameZh ?? category.nameJa),
+      if (skill?.power != null) '威力 ${skill!.power}',
+      if (skill?.spCost != null) 'SP ${skill!.spCost}',
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              FluentIcons.lightning_bolt,
+              size: 14,
+              color: theme.resources.textFillColorSecondary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BilingualText(
+                  zh: skill?.nameZh,
+                  ja: skill?.nameJa ?? row.skillId,
+                  style: theme.typography.bodyStrong,
+                ),
+                if (captionParts.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      captionParts.join(' · '),
+                      style: theme.typography.caption?.copyWith(
+                        color: theme.resources.textFillColorSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: theme.resources.subtleFillColorSecondary,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              _acquisitionLabel(),
+              style: theme.typography.caption,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -322,7 +669,7 @@ class _DetailImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       alignment: Alignment.center,
-      child: const Icon(FluentIcons.photo2, size: 64),
+      child: const Icon(FluentIcons.photo2, size: 32),
     );
 
     if (path == null || path!.isEmpty) return placeholder;
@@ -335,4 +682,17 @@ class _DetailImage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 把進化條件原文壓成適合 inline 顯示的精簡版：
+/// - 過濾純標題行（如 ＜進化＞）
+/// - 連續換行壓成單一換行
+String _summarizeConditionText(String raw) {
+  final lines = raw
+      .split(RegExp(r'[\r\n]+'))
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .where((s) => !RegExp(r'^[＜<].+[＞>]$').hasMatch(s))
+      .toList();
+  return lines.join('\n');
 }
