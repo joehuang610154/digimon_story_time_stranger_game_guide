@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir E:\\\\Projects\\\\Game Guides\\\\Digimon Story Time Stranger *)",
+      "Bash(dir E:\\\\Projects\\\\Game Guides\\\\Digimon Story Time Stranger\\\\lib *)",
+      "WebFetch(domain:game8.jp)",
+      "WebSearch",
+      "Bash(flutter *)",
+      "Bash(dart run *)",
+      "Bash(dart --version)",
+      "Bash(dart analyze *)",
+      "Bash(tee .cache/sync.log)",
+      "Skill(reset-db)",
+      "PowerShell(dart run *)",
+      "PowerShell(flutter analyze *)",
+      "PowerShell(sqlite3 *)",
+      "PowerShell(dart *)",
+      "Bash(findstr fluent_ui)",
+      "Bash(findstr /i \"fluent_ui\\\\\":\")"
+    ]
+  }
+}

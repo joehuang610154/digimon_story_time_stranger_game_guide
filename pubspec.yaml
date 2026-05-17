@@ -1,0 +1,53 @@
+name: digimon_story_time_stranger
+description: "數碼寶貝物語 時空異客 攻略資料庫 (Windows)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # UI
+  fluent_ui: ^4.9.2
+  flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.4.1
+
+  # DB
+  drift: ^2.20.0
+  sqlite3: ^2.4.6
+  sqlite3_flutter_libs: ^0.5.24
+
+  # File / path
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Network (for image fetch fallback and any runtime sync)
+  http: ^1.2.2
+
+  # Utilities
+  collection: ^1.18.0
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Drift codegen
+  drift_dev: ^2.20.0
+  build_runner: ^2.4.13
+
+  # Scraper-only deps (used by tool/ scripts)
+  html: ^0.15.4
+  args: ^2.5.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/db/
+    - assets/images/
+    - assets/images/digimon/
