@@ -1,11 +1,10 @@
-import 'dart:async';
-
 import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../data/app_database.dart';
 import '../../data/repository.dart';
 import '../widgets/bilingual_text.dart';
 import '../widgets/page_scaffold.dart';
+import '../widgets/search_box.dart';
 import 'digimon_detail_page.dart';
 
 class DigimonListPage extends StatefulWidget {
@@ -166,13 +165,9 @@ class _FilterBar extends StatelessWidget {
       final compact = c.maxWidth < 720;
       final searchField = SizedBox(
         width: compact ? c.maxWidth : 320,
-        child: TextBox(
+        child: DebouncedSearchBox(
           controller: controller,
           placeholder: '輸入名稱（日 / 中 / 英）',
-          prefix: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Icon(FluentIcons.search),
-          ),
           onChanged: onSearchChanged,
         ),
       );

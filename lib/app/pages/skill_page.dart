@@ -4,6 +4,7 @@ import '../../data/app_database.dart';
 import '../../data/repository.dart';
 import '../widgets/bilingual_text.dart';
 import '../widgets/page_scaffold.dart';
+import '../widgets/search_box.dart';
 
 class SkillPage extends StatefulWidget {
   const SkillPage({super.key, required this.repository});
@@ -58,13 +59,9 @@ class _SkillPageState extends State<SkillPage> {
         children: [
           SizedBox(
             width: 360,
-            child: TextBox(
+            child: DebouncedSearchBox(
               controller: _search,
               placeholder: '搜尋技能（日 / 中）',
-              prefix: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(FluentIcons.search),
-              ),
               onChanged: (_) => _reload(),
             ),
           ),
