@@ -1,6 +1,10 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
-/// 顯示 中日對照 的文字，例： 「亞古獸 / アグモン」
+import '../language.dart';
+
+/// 依目前語言模式顯示名稱：
+/// - 中日對照：「亞古獸 / アグモン」
+/// - 中文 / 日文：只顯示對應語言（缺該語言時 fallback 到另一邊）
 class BilingualText extends StatelessWidget {
   const BilingualText({
     super.key,
@@ -23,13 +27,26 @@ class BilingualText extends StatelessWidget {
         theme.typography.caption!
             .copyWith(color: theme.resources.textFillColorSecondary);
 
-    if ((zh == null || zh!.isEmpty) && (ja == null || ja!.isEmpty)) {
+    final hasZh = zh != null && zh!.isNotEmpty;
+    final hasJa = ja != null && ja!.isNotEmpty;
+    if (!hasZh && !hasJa) {
       return Text('—', style: baseStyle);
     }
-    if (zh == null || zh!.isEmpty) {
+
+    final lang = LanguageScope.of(context);
+    // 單語模式：顯示選定語言，缺則 fallback 到另一邊。
+    if (lang == AppLanguage.zh) {
+      return Text(hasZh ? zh! : ja!, style: baseStyle);
+    }
+    if (lang == AppLanguage.ja) {
+      return Text(hasJa ? ja! : zh!, style: baseStyle);
+    }
+
+    // 中日對照模式：只有一邊時顯示該邊；兩邊都有則 zh / ja 並陳。
+    if (!hasZh) {
       return Text(ja!, style: baseStyle);
     }
-    if (ja == null || ja!.isEmpty) {
+    if (!hasJa) {
       return Text(zh!, style: baseStyle);
     }
     return RichText(

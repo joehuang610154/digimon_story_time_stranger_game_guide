@@ -23,6 +23,8 @@ import 'quality_report.dart';
 import 'sources/bahamut.dart';
 import 'sources/game8.dart';
 import 'sources/ggameker.dart';
+import 'sources/ilaopo.dart';
+import 'sources/zh_terms.dart';
 import 'writer.dart';
 
 Future<void> main(List<String> argv) async {
@@ -81,6 +83,12 @@ Future<void> main(List<String> argv) async {
   }
   if (run('ggameker')) {
     await GgamekerSource(fetcher).collect(bundle);
+  }
+  if (run('ilaopo')) {
+    await IlaopoSource(fetcher).collect(bundle);
+  }
+  if (run('zh_terms')) {
+    await ZhTermsSource().collect(bundle);
   }
 
   if (args['images'] as bool) {

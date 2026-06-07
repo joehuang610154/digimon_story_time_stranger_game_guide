@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../data/app_database.dart';
 import '../../data/repository.dart';
+import '../language.dart';
 import '../widgets/bilingual_text.dart';
 import 'evolution_route_page.dart';
 
@@ -470,9 +471,12 @@ class _EvolutionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
+    final lang = LanguageScope.of(context);
     final targetId = fromHere ? row.toId : row.fromId;
     final target = digimonsById[targetId];
-    final conditionRaw = row.conditionTextZh ?? row.conditionTextJa;
+    final conditionRaw = lang == AppLanguage.ja
+        ? (row.conditionTextJa ?? row.conditionTextZh)
+        : (row.conditionTextZh ?? row.conditionTextJa);
     final condition = conditionRaw == null
         ? null
         : _summarizeConditionText(conditionRaw);
@@ -481,8 +485,8 @@ class _EvolutionTile extends StatelessWidget {
     final attr =
         target == null ? null : lookups.attributes[target.attributeId];
     final subtitleParts = <String>[
-      if (stage != null) (stage.nameZh ?? stage.nameJa),
-      if (attr != null) (attr.nameZh ?? attr.nameJa),
+      if (stage != null) pickName(lang, zh: stage.nameZh, ja: stage.nameJa),
+      if (attr != null) pickName(lang, zh: attr.nameZh, ja: attr.nameJa),
     ];
 
     return Padding(
@@ -588,6 +592,7 @@ class _SkillTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
+    final lang = LanguageScope.of(context);
     final skill = skillsById[row.skillId];
     final element =
         skill?.elementId == null ? null : lookups.elements[skill!.elementId];
@@ -595,8 +600,9 @@ class _SkillTile extends StatelessWidget {
         ? null
         : lookups.skillCategories[skill!.categoryId];
     final captionParts = <String>[
-      if (element != null) (element.nameZh ?? element.nameJa),
-      if (category != null) (category.nameZh ?? category.nameJa),
+      if (element != null) pickName(lang, zh: element.nameZh, ja: element.nameJa),
+      if (category != null)
+        pickName(lang, zh: category.nameZh, ja: category.nameJa),
       if (skill?.power != null) '威力 ${skill!.power}',
       if (skill?.spCost != null) 'SP ${skill!.spCost}',
     ];

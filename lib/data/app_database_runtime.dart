@@ -17,7 +17,7 @@ const _dbFileName = 'digimon.sqlite';
 /// 由 `tool/scrapers/sync.dart --bump-version` 自動改寫此行；手動改也可，
 /// 但**必須**維持 `const bundledDbVersion = '...';` 這個 pattern，
 /// 否則自動 bump 的 regex 會找不到。
-const bundledDbVersion = '2026-05-17-filter-non-digimon-index-rows';
+const bundledDbVersion = '2026-06-07-add-zh-names';
 
 /// App 啟動時呼叫，回傳已綁定 user data 目錄與 assets bundle 的 [AppDatabase]。
 AppDatabase openAppDatabase() {

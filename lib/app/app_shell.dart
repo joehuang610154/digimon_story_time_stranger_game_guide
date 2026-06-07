@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
 import '../data/repository.dart';
+import 'language.dart';
 import 'pages/digimon_list_page.dart';
 import 'pages/settings_page.dart';
 
@@ -10,11 +11,15 @@ class AppShell extends StatefulWidget {
     required this.repository,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.language,
+    required this.onLanguageChanged,
   });
 
   final DigimonRepository repository;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final AppLanguage language;
+  final ValueChanged<AppLanguage> onLanguageChanged;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -43,12 +48,19 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
         footerItems: [
+          PaneItemAction(
+            icon: const Icon(FluentIcons.locale_language),
+            title: Text('語言：${widget.language.fullLabel}'),
+            onTap: () => widget.onLanguageChanged(widget.language.next),
+          ),
           PaneItem(
             icon: const Icon(FluentIcons.settings),
             title: const Text('設定'),
             body: SettingsPage(
               themeMode: widget.themeMode,
               onThemeModeChanged: widget.onThemeModeChanged,
+              language: widget.language,
+              onLanguageChanged: widget.onLanguageChanged,
             ),
           ),
         ],

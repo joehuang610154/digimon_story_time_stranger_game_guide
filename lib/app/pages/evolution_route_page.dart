@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../data/app_database.dart';
 import '../../data/repository.dart';
+import '../language.dart';
 import '../widgets/bilingual_text.dart';
 
 /// 單隻數碼寶貝的進化路線圖：以選定為中心，往左展示全部祖先、往右展示
@@ -654,7 +655,10 @@ class _NodeCard extends StatelessWidget {
     final textColor = theme.resources.textFillColorPrimary;
     final subtleColor = theme.resources.textFillColorSecondary;
 
-    final condFull = conditionZh ?? conditionJa;
+    final lang = LanguageScope.of(context);
+    final condFull = lang == AppLanguage.ja
+        ? (conditionJa ?? conditionZh)
+        : (conditionZh ?? conditionJa);
     final condSummary = condFull == null ? null : _summarizeCondition(condFull);
 
     return HoverButton(

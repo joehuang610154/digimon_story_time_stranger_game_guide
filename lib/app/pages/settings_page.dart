@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
+import '../language.dart';
 import '../widgets/page_scaffold.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -7,10 +8,14 @@ class SettingsPage extends StatelessWidget {
     super.key,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.language,
+    required this.onLanguageChanged,
   });
 
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final AppLanguage language;
+  final ValueChanged<AppLanguage> onLanguageChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +24,23 @@ class SettingsPage extends StatelessWidget {
       title: '設定',
       child: ListView(
         children: [
+          Text('語言', style: theme.typography.bodyStrong),
+          const SizedBox(height: 4),
+          Text(
+            '資料皆為中日雙語儲存，此設定只改變顯示方式。也可從左下角導覽列快速切換。',
+            style: theme.typography.caption?.copyWith(
+              color: theme.resources.textFillColorSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final lang in AppLanguage.values)
+                _languageChip(lang),
+            ],
+          ),
+          const SizedBox(height: 24),
           Text('主題', style: theme.typography.bodyStrong),
           const SizedBox(height: 8),
           Wrap(
@@ -93,6 +115,14 @@ class SettingsPage extends StatelessWidget {
       checked: selected,
       onChanged: (_) => onThemeModeChanged(m),
       child: Text(label),
+    );
+  }
+
+  Widget _languageChip(AppLanguage lang) {
+    return ToggleButton(
+      checked: language == lang,
+      onChanged: (_) => onLanguageChanged(lang),
+      child: Text(lang.fullLabel),
     );
   }
 }

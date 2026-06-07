@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../data/app_database.dart';
 import '../../data/repository.dart';
+import '../language.dart';
 import '../widgets/bilingual_text.dart';
 import '../widgets/page_scaffold.dart';
 import '../widgets/search_box.dart';
@@ -161,6 +162,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = LanguageScope.of(context);
     return LayoutBuilder(builder: (context, c) {
       final compact = c.maxWidth < 720;
       final searchField = SizedBox(
@@ -178,7 +180,7 @@ class _FilterBar extends StatelessWidget {
           const ComboBoxItem(value: '', child: Text('全部世代')),
           ...stages.map((s) => ComboBoxItem(
                 value: s.id,
-                child: Text(s.nameZh ?? s.nameJa),
+                child: Text(pickName(lang, zh: s.nameZh, ja: s.nameJa)),
               )),
         ],
         onChanged: (v) => onStageChanged(v == '' ? null : v),
@@ -190,7 +192,7 @@ class _FilterBar extends StatelessWidget {
           const ComboBoxItem(value: '', child: Text('全部種族')),
           ...attributes.map((a) => ComboBoxItem(
                 value: a.id,
-                child: Text(a.nameZh ?? a.nameJa),
+                child: Text(pickName(lang, zh: a.nameZh, ja: a.nameJa)),
               )),
         ],
         onChanged: (v) => onAttrChanged(v == '' ? null : v),
@@ -270,12 +272,13 @@ class _DigimonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
+    final lang = LanguageScope.of(context);
     final stage = lookups.stages[row.stageId];
     final attr = lookups.attributes[row.attributeId];
     final subtitle = [
-      stage?.nameZh ?? stage?.nameJa,
-      attr?.nameZh ?? attr?.nameJa,
-    ].whereType<String>().where((e) => e.isNotEmpty).join(' · ');
+      pickName(lang, zh: stage?.nameZh, ja: stage?.nameJa),
+      pickName(lang, zh: attr?.nameZh, ja: attr?.nameJa),
+    ].where((e) => e.isNotEmpty).join(' · ');
     return HoverButton(
       onPressed: onTap,
       builder: (context, states) {

@@ -68,15 +68,20 @@ class DigimonRepository {
 
   // ---- Evolutions ----
 
-  /// 取得某數碼寶貝的進化來源 / 去向。
+  /// 取得某數碼寶貝的進化去向（進化先）。只取 direction='evolve'，
+  /// 否則退化（devolve）邊會被當成進化目標一起列出。
   Future<List<EvolutionRow>> evolutionsFrom(String digimonId) {
     return (_db.select(_db.evolutions)
-          ..where((t) => t.fromId.equals(digimonId)))
+          ..where((t) =>
+              t.fromId.equals(digimonId) & t.direction.equals('evolve')))
         .get();
   }
 
+  /// 取得某數碼寶貝的進化來源（進化元）。同樣只取 direction='evolve'。
   Future<List<EvolutionRow>> evolutionsTo(String digimonId) {
-    return (_db.select(_db.evolutions)..where((t) => t.toId.equals(digimonId)))
+    return (_db.select(_db.evolutions)
+          ..where((t) =>
+              t.toId.equals(digimonId) & t.direction.equals('evolve')))
         .get();
   }
 
